@@ -2,12 +2,11 @@ import asyncio
 import logging
 import re
 import json
+import os
 from typing import Optional, Dict, Any, List
-from ollama import AsyncClient, ResponseError
-from httpx import ConnectError
 from datetime import datetime
 
-from ai.nlp.ollama_manager import OllamaManager
+from ai.nlp.gemini_manager import GeminiManager
 from ai.nlp.prompt_creator import create_system_prompt, create_recommendation_prompt
 
 logger = logging.getLogger("NLPModule")
@@ -18,7 +17,7 @@ RECOMMENDATION_JSON_REGEX = re.compile(
 )
 
 class NLPModule:
-    """Clase principal para el procesamiento NLP con integración a Ollama para recomendaciones."""
+    """Clase principal para el procesamiento NLP con integración a Gemini para recomendaciones."""
 
     def __init__(self, config: Dict[str, Any]):
         """
@@ -29,17 +28,17 @@ class NLPModule:
         """
         self._config = config
         model_config = config.get("model", {
-            "name": "qwen2.5:3b-instruct",
+            "name": "gemini-pro",
             "temperature": 0.7,
             "max_tokens": 1024
         })
-        self._ollama_manager = OllamaManager(model_config)
-        self._online = self._ollama_manager.is_online()
+        self._gemini_manager = GeminiManager(model_config)
+        self._online = self._gemini_manager.is_online()
         logger.info("NLPModule inicializado.")
 
     def is_online(self) -> bool:
         """Devuelve True si el módulo NLP está online."""
-        return self._ollama_manager.is_online()
+        return self._gemini_manager.is_online()
 
     async def generate_recommendations(
         self,
@@ -47,16 +46,20 @@ class NLPModule:
         preferencias: List[Dict[str, Any]],
         actividades_disponibles: List[Dict[str, Any]],
         historial_participacion: List[Dict[str, Any]] = None,
+        hobbies: Optional[str] = None,
+        intereses: Optional[str] = None,
         user_query: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Genera recomendaciones de actividades usando Ollama.
+        Genera recomendaciones de actividades usando Gemini API.
         
         Args:
             usuario_id: ID del usuario
             preferencias: Lista de preferencias del usuario
             actividades_disponibles: Lista de actividades disponibles
             historial_participacion: Historial de participación del usuario
+            hobbies: Hobbies del usuario
+            intereses: Intereses del usuario
             user_query: Consulta opcional del usuario
             
         Returns:
@@ -86,6 +89,8 @@ class NLPModule:
             preferencias=preferencias,
             actividades_disponibles=actividades_disponibles,
             historial_participacion=historial_participacion,
+            hobbies=hobbies,
+            intereses=intereses,
             fecha_actual=fecha_actual
         )
 
@@ -93,35 +98,31 @@ class NLPModule:
             user_query=user_query or "Recomiéndame actividades basadas en mis preferencias",
             preferencias=preferencias,
             actividades_disponibles=actividades_disponibles,
-            historial_participacion=historial_participacion
+            historial_participacion=historial_participacion,
+            hobbies=hobbies,
+            intereses=intereses
         )
 
-        # Generar respuesta con Ollama
+        # Generar respuesta con Gemini
         recommendations = []
-        client = AsyncClient(host="http://localhost:11434")
+        model = self._gemini_manager.get_model()
 
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ]
-
-        try:
-            model_options = {
-                "temperature": self._config.get("model", {}).get("temperature", 0.7),
-                "num_predict": self._config.get("model", {}).get("max_tokens", 1024),
+        if not model:
+            return {
+                "error": "No se pudo obtener el modelo de Gemini",
+                "recomendaciones": []
             }
 
-            response_stream = await client.chat(
-                model=self._config.get("model", {}).get("name", "qwen2.5:3b-instruct"),
-                messages=messages,
-                options=model_options,
-                stream=True,
-            )
+        try:
+            # Combinar system prompt y user prompt para Gemini
+            # Gemini no tiene separación system/user, así que combinamos
+            full_prompt = f"""{system_prompt}
 
-            full_response_content = ""
-            async for chunk in response_stream:
-                if "message" in chunk and "content" in chunk["message"]:
-                    full_response_content += chunk["message"]["content"]
+{user_prompt}"""
+
+            # Generar respuesta con Gemini
+            response = model.generate_content(full_prompt)
+            full_response_content = response.text
 
             # Extraer recomendaciones del JSON
             recommendations = self._extract_recommendations(full_response_content, actividades_disponibles)
@@ -133,8 +134,8 @@ class NLPModule:
                 "response_text": full_response_content
             }
 
-        except (ResponseError, ConnectError, Exception) as e:
-            logger.error(f"Error al generar recomendaciones: {e}")
+        except Exception as e:
+            logger.error(f"Error al generar recomendaciones con Gemini: {e}")
             return {
                 "error": f"Error al generar recomendaciones: {str(e)}",
                 "recomendaciones": []

@@ -8,7 +8,9 @@ def create_system_prompt(
     preferencias: List[Dict[str, Any]],
     actividades_disponibles: List[Dict[str, Any]],
     historial_participacion: List[Dict[str, Any]],
-    fecha_actual: str
+    hobbies: Any = None,
+    intereses: Any = None,
+    fecha_actual: str = ""
 ) -> str:
     """
     Crea un prompt del sistema personalizado para recomendaciones de actividades.
@@ -36,6 +38,10 @@ def create_system_prompt(
     # Formatear historial
     historial_str = json.dumps(historial_participacion, ensure_ascii=False, indent=2) if historial_participacion else "Sin historial previo"
     
+    # Formatear hobbies e intereses
+    hobbies_str = hobbies if hobbies else "No especificados"
+    intereses_str = intereses if intereses else "No especificados"
+    
     # Reemplazar variables en el template
     prompt = template.format(
         assistant_name=config.get("assistant_name", "SmartCampus Assistant"),
@@ -44,6 +50,8 @@ def create_system_prompt(
         preferencias=preferencias_str,
         actividades_disponibles=actividades_str,
         historial_participacion=historial_str,
+        hobbies=hobbies_str,
+        intereses=intereses_str,
         fecha_actual=fecha_actual
     )
     
@@ -53,7 +61,9 @@ def create_recommendation_prompt(
     user_query: str,
     preferencias: List[Dict[str, Any]],
     actividades_disponibles: List[Dict[str, Any]],
-    historial_participacion: List[Dict[str, Any]]
+    historial_participacion: List[Dict[str, Any]],
+    hobbies: Any = None,
+    intereses: Any = None
 ) -> str:
     """
     Crea un prompt para generar recomendaciones específicas.
@@ -67,11 +77,18 @@ def create_recommendation_prompt(
     Returns:
         String con el prompt de recomendación
     """
-    prompt = f"""Basándote en las preferencias del usuario y las actividades disponibles, genera recomendaciones personalizadas.
+    hobbies_info = f"Hobbies del usuario: {hobbies}" if hobbies else "Hobbies: No especificados"
+    intereses_info = f"Intereses del usuario: {intereses}" if intereses else "Intereses: No especificados"
+    
+    prompt = f"""Basándote en las preferencias, hobbies, intereses del usuario y las actividades disponibles, genera recomendaciones personalizadas.
 
 Preferencias del usuario: {json.dumps(preferencias, ensure_ascii=False)}
+{hobbies_info}
+{intereses_info}
 Actividades disponibles: {json.dumps(actividades_disponibles[:30], ensure_ascii=False)}
 Historial de participación: {json.dumps(historial_participacion, ensure_ascii=False)}
+
+IMPORTANTE: Prioriza actividades que coincidan con los hobbies e intereses del usuario. Si el usuario tiene hobbies o intereses específicos, busca actividades relacionadas en la descripción, título o categoría.
 
 """
     

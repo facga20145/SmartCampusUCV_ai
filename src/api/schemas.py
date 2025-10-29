@@ -22,6 +22,8 @@ class RecomendacionRequest(BaseModel):
     preferencias: List[PreferenciaInput]
     usuario_id: int
     historial_participacion: Optional[List[Dict[str, Any]]] = []
+    hobbies: Optional[str] = None
+    intereses: Optional[str] = None
     user_query: Optional[str] = None
 
 class RecomendacionOutput(BaseModel):

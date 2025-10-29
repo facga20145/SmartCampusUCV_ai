@@ -76,6 +76,8 @@ async def recomendar(request: RecomendacionRequest):
             preferencias=preferencias_formato,
             actividades_disponibles=actividades_formato,
             historial_participacion=request.historial_participacion or [],
+            hobbies=request.hobbies,
+            intereses=request.intereses,
             user_query=request.user_query
         )
 

@@ -2,7 +2,7 @@
   "assistant_name": "SmartCampus Assistant",
   "language": "es",
   "model": {
-    "name": "qwen2.5:3b-instruct",
+    "name": "gemini-pro",
     "temperature": 0.7,
     "max_tokens": 1024
   },

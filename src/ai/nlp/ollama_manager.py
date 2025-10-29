@@ -33,8 +33,9 @@ class OllamaManager:
     def _start_ollama_server(self, retries: int = 30, delay: int = 1):
         """Inicia el servidor de Ollama como un subproceso si no está ya en ejecución."""
         logger.debug("Verificando si el servidor Ollama ya está en ejecución.")
+        ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
         try:
-            client = ollama.Client(host='http://localhost:11434')
+            client = ollama.Client(host=ollama_host)
             client.list()
             logger.info("El servidor de Ollama ya está en ejecución.")
             self._online = True
@@ -55,7 +56,7 @@ class OllamaManager:
             
             for attempt in range(retries):
                 try:
-                    client = ollama.Client(host='http://localhost:11434')
+                    client = ollama.Client(host=ollama_host)
                     client.list()
                     logger.info("Conexión con el servidor de Ollama establecida exitosamente.")
                     self._online = True
@@ -98,8 +99,9 @@ class OllamaManager:
     def _check_connection(self) -> bool:
         """Verifica la conexión con Ollama y la disponibilidad del modelo configurado."""
         logger.debug("Realizando verificación de conexión y modelo Ollama.")
+        ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
         try:
-            client = ollama.Client(host='http://localhost:11434')
+            client = ollama.Client(host=ollama_host)
             available_models = client.list()
             model_names = [m['name'] for m in available_models.get('models', [])]
             logger.debug(f"Modelos Ollama disponibles: {', '.join(model_names)}")
