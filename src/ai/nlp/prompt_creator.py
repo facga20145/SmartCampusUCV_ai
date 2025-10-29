@@ -80,16 +80,32 @@ def create_recommendation_prompt(
     hobbies_info = f"Hobbies del usuario: {hobbies}" if hobbies else "Hobbies: No especificados"
     intereses_info = f"Intereses del usuario: {intereses}" if intereses else "Intereses: No especificados"
     
+    # Crear lista de palabras clave para matching
+    keywords = []
+    if hobbies:
+        keywords.extend(hobbies.lower().split(','))
+        keywords.extend(hobbies.lower().split())
+    if intereses:
+        keywords.extend(intereses.lower().split(','))
+        keywords.extend(intereses.lower().split())
+    keywords = [k.strip() for k in keywords if len(k.strip()) > 2]
+    keywords_str = ", ".join(keywords[:20]) if keywords else "ninguna"
+    
     prompt = f"""Basándote en las preferencias, hobbies, intereses del usuario y las actividades disponibles, genera recomendaciones personalizadas.
 
 Preferencias del usuario: {json.dumps(preferencias, ensure_ascii=False)}
 {hobbies_info}
 {intereses_info}
 
+PALABRAS CLAVE DEL USUARIO PARA MATCHING: {keywords_str}
+**IMPORTANTE**: Busca estas palabras clave en el título, descripción y categoría de las actividades. Por ejemplo:
+- Si el usuario tiene "Deporte" en hobbies → busca actividades con categoría "deportiva" o palabras relacionadas
+- Si el usuario tiene "Arte" en intereses → busca actividades con "arte", "artística", "cultural" en categoría/título
+
 ACTIVIDADES DISPONIBLES (SCHEMA):
 Cada actividad tiene esta estructura:
 - "id": número entero (ÚSALO en actividad_id)
-- "categoria": string
+- "categoria": string (ej: "deportiva", "cultural", "ambiental")
 - "titulo": string
 - "descripcion": string o null
 - "fecha": string (YYYY-MM-DD)
@@ -101,10 +117,15 @@ Actividades disponibles: {json.dumps(actividades_disponibles[:30], ensure_ascii=
 Historial de participación: {json.dumps(historial_participacion, ensure_ascii=False)}
 
 REGLAS CRÍTICAS:
-1. Usa SOLO los IDs que existen en la lista de actividades disponibles
+1. Usa SOLO los IDs que existen en la lista de actividades disponibles (verifica que el ID existe antes de usarlo)
 2. El campo "id" de cada actividad es el que debes usar en "actividad_id" del JSON
-3. Prioriza actividades que coincidan con hobbies e intereses del usuario
-4. Busca palabras clave de hobbies/intereses en: titulo, descripcion, categoria
+3. DEBES generar al menos 1 recomendación si hay actividades disponibles
+4. Prioriza actividades que coincidan con hobbies e intereses:
+   - Si el usuario tiene "Deporte" → busca categoría "deportiva" o títulos que mencionen deporte
+   - Si el usuario tiene "Arte" → busca categoría "cultural" o títulos que mencionen arte/cultura
+   - Si no hay coincidencia exacta, busca similitudes (ej: "futbol" → "deportiva")
+5. Busca palabras clave de hobbies/intereses en: titulo, descripcion, categoria (búsqueda flexible)
+6. Si hay múltiples actividades que coinciden, selecciona las mejores (mayor puntuación basada en relevancia)
 
 """
     

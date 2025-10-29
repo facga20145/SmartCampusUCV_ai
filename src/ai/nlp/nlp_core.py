@@ -11,10 +11,20 @@ from ai.nlp.prompt_creator import create_system_prompt, create_recommendation_pr
 
 logger = logging.getLogger("NLPModule")
 
+# Regex mejorado para capturar JSONs incluso si tienen saltos de línea
 RECOMMENDATION_JSON_REGEX = re.compile(
-    r"(?:GENERAR_RECOMENDACION_JSON|Generar_recomendacion_JSON):\s*({.*?})",
+    r"(?:GENERAR_RECOMENDACION_JSON|Generar_recomendacion_JSON|GENERAR_RECOMENDACION|generar_recomendacion):\s*({[^}]*})",
     re.DOTALL | re.IGNORECASE
 )
+
+# Regex alternativo para JSONs en múltiples líneas
+RECOMMENDATION_JSON_MULTILINE_REGEX = re.compile(
+    r"(?:GENERAR_RECOMENDACION_JSON|Generar_recomendacion_JSON):\s*({[\s\S]*?})",
+    re.IGNORECASE
+)
+
+# Regex para buscar IDs de actividades en el texto
+ACTIVITY_ID_REGEX = re.compile(r'"actividad_id"\s*:\s*(\d+)', re.IGNORECASE)
 
 class NLPModule:
     """Clase principal para el procesamiento NLP con integración a Gemini para recomendaciones."""
@@ -123,11 +133,17 @@ class NLPModule:
             # Generar respuesta con Gemini
             response = model.generate_content(full_prompt)
             full_response_content = response.text
+            
+            # Log la respuesta completa para debugging (primeros 500 caracteres)
+            logger.debug(f"Respuesta de Gemini (primeros 500 chars): {full_response_content[:500]}")
+            logger.info(f"Respuesta completa de Gemini: {full_response_content}")
 
             # Extraer recomendaciones del JSON
             recommendations = self._extract_recommendations(full_response_content, actividades_disponibles)
 
             logger.info(f"Generadas {len(recommendations)} recomendaciones para usuario {usuario_id}")
+            if len(recommendations) == 0:
+                logger.warning(f"No se pudieron extraer recomendaciones. Respuesta fue: {full_response_content[:200]}")
 
             return {
                 "recomendaciones": recommendations,
@@ -155,16 +171,50 @@ class NLPModule:
         recommendations = []
         actividad_ids_set = {act.get("id") for act in actividades_disponibles if act.get("id")}
 
-        # Buscar todos los JSON de recomendación en el texto
-        matches = RECOMMENDATION_JSON_REGEX.findall(response_text)
+        processed_ids = set()  # Para evitar duplicados
 
+        # Buscar todos los JSON de recomendación en el texto (intentar múltiples formatos)
+        matches = RECOMMENDATION_JSON_REGEX.findall(response_text)
+        if not matches:
+            # Intentar con regex multilinea
+            matches = RECOMMENDATION_JSON_MULTILINE_REGEX.findall(response_text)
+        
+        # Si aún no hay matches, buscar IDs directamente en el texto
+        if not matches:
+            found_ids = ACTIVITY_ID_REGEX.findall(response_text)
+            logger.info(f"No se encontraron JSONs completos, pero se encontraron IDs: {found_ids}")
+            for actividad_id_str in found_ids:
+                try:
+                    actividad_id = int(actividad_id_str)
+                    if actividad_id in actividad_ids_set and actividad_id not in processed_ids:
+                        actividad = next(
+                            (act for act in actividades_disponibles if act.get("id") == actividad_id),
+                            None
+                        )
+                        if actividad:
+                            recommendations.append({
+                                "actividad_id": actividad_id,
+                                "titulo": actividad.get("titulo", ""),
+                                "categoria": actividad.get("categoria", ""),
+                                "razon": "Recomendada basándose en tus preferencias",
+                                "puntuacion": 0.8,
+                                "actividad": actividad
+                            })
+                            processed_ids.add(actividad_id)
+                except ValueError:
+                    continue
+
+        # Procesar JSONs encontrados
         for match in matches:
             try:
-                recommendation_data = json.loads(match)
+                # Limpiar el match (eliminar saltos de línea y espacios extra)
+                cleaned_match = match.replace('\n', '').replace('\r', '').strip()
+                # Intentar parsear como JSON
+                recommendation_data = json.loads(cleaned_match)
                 actividad_id = recommendation_data.get("actividad_id")
 
-                # Validar que el ID existe
-                if actividad_id and actividad_id in actividad_ids_set:
+                # Validar que el ID existe y no ha sido procesado
+                if actividad_id and actividad_id in actividad_ids_set and actividad_id not in processed_ids:
                     # Encontrar la actividad correspondiente
                     actividad = next(
                         (act for act in actividades_disponibles if act.get("id") == actividad_id),
@@ -176,20 +226,47 @@ class NLPModule:
                             "actividad_id": actividad_id,
                             "titulo": actividad.get("titulo", ""),
                             "categoria": actividad.get("categoria", ""),
-                            "razon": recommendation_data.get("razon", ""),
-                            "puntuacion": recommendation_data.get("puntuacion", 0.0),
+                            "razon": recommendation_data.get("razon", "Recomendada basándose en tus preferencias"),
+                            "puntuacion": recommendation_data.get("puntuacion", 0.8),
                             "actividad": actividad
                         })
+                        processed_ids.add(actividad_id)
+                        logger.info(f"Recomendación extraída: actividad_id={actividad_id}, título={actividad.get('titulo', '')}")
                 else:
-                    logger.warning(f"Actividad ID {actividad_id} no encontrada en actividades disponibles")
+                    if actividad_id:
+                        logger.warning(f"Actividad ID {actividad_id} no encontrada o ya procesada")
 
             except json.JSONDecodeError as e:
-                logger.error(f"Error al decodificar JSON de recomendación: {e}")
+                logger.warning(f"Error al decodificar JSON de recomendación: {e}. JSON: {match[:100]}")
+                # Intentar extraer solo el ID si el JSON está mal formateado
+                id_match = ACTIVITY_ID_REGEX.search(match)
+                if id_match:
+                    try:
+                        actividad_id = int(id_match.group(1))
+                        if actividad_id in actividad_ids_set and actividad_id not in processed_ids:
+                            actividad = next(
+                                (act for act in actividades_disponibles if act.get("id") == actividad_id),
+                                None
+                            )
+                            if actividad:
+                                recommendations.append({
+                                    "actividad_id": actividad_id,
+                                    "titulo": actividad.get("titulo", ""),
+                                    "categoria": actividad.get("categoria", ""),
+                                    "razon": "Recomendada basándose en tus preferencias",
+                                    "puntuacion": 0.8,
+                                    "actividad": actividad
+                                })
+                                processed_ids.add(actividad_id)
+                    except (ValueError, AttributeError):
+                        pass
             except Exception as e:
                 logger.error(f"Error al procesar recomendación: {e}")
 
         # Ordenar por puntuación descendente
         recommendations.sort(key=lambda x: x.get("puntuacion", 0.0), reverse=True)
+        
+        logger.info(f"Total de recomendaciones extraídas: {len(recommendations)}")
 
         return recommendations
 
