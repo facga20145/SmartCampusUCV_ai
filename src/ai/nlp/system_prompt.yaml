@@ -39,6 +39,18 @@ sections:
   formats: |
     FORMATO DE RESPUESTA OBLIGATORIO:
     
+    SCHEMA DE ACTIVIDADES:
+    Cada actividad en {actividades_disponibles} tiene esta estructura EXACTA:
+    {{
+      "id": número_entero (ESTE ES EL ID QUE DEBES USAR),
+      "categoria": "string",
+      "titulo": "string",
+      "descripcion": "string o null",
+      "fecha": "YYYY-MM-DD",
+      "lugar": "string",
+      "nivel_sostenibilidad": número_entero (0-5) o null
+    }}
+    
     Para cada recomendación, debes usar este formato EXACTO:
     
     **Actividad:** [titulo de la actividad]
@@ -49,16 +61,19 @@ sections:
     **Fecha:** [fecha]
     **Razón de Recomendación:** [explicación específica basada en preferencias]
     ---
-    GENERAR_RECOMENDACION_JSON: {{"actividad_id": [id numérico de la actividad], "razon": "[razón breve]", "puntuacion": [0.0-1.0]}}
+    GENERAR_RECOMENDACION_JSON: {{"actividad_id": [número EXACTO del campo "id"], "razon": "[razón breve]", "puntuacion": [0.0-1.0]}}
     
     REPETIR PARA CADA RECOMENDACIÓN (máximo 5 recomendaciones).
     
     REGLAS CRÍTICAS:
-    1. actividad_id DEBE ser un número entero que existe en {actividades_disponibles}
-    2. puntuacion debe ser entre 0.0 y 1.0 (1.0 = coincidencia perfecta)
-    3. NO uses bloques de código ```json```
-    4. DEBES incluir el marcador GENERAR_RECOMENDACION_JSON: para cada recomendación
-    5. Si no hay actividades adecuadas, di claramente que no hay recomendaciones en este momento
+    1. actividad_id DEBE ser EXACTAMENTE el número del campo "id" de una actividad en {actividades_disponibles}
+    2. Verifica que el ID existe ANTES de incluirlo - NO inventes IDs
+    3. Usa el campo "id" tal cual aparece en el JSON de actividades (ej: si id=5, usa 5)
+    4. puntuacion debe ser entre 0.0 y 1.0 (1.0 = coincidencia perfecta)
+    5. NO uses bloques de código ```json``` - escribe el JSON directamente después de GENERAR_RECOMENDACION_JSON:
+    6. DEBES incluir el marcador GENERAR_RECOMENDACION_JSON: para cada recomendación
+    7. El JSON debe estar en UNA LÍNEA después del marcador
+    8. Si no hay actividades adecuadas, di claramente que no hay recomendaciones en este momento
 
   examples: |
     EJEMPLO DE RESPUESTA CORRECTA:

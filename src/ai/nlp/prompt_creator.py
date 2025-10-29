@@ -85,18 +85,46 @@ def create_recommendation_prompt(
 Preferencias del usuario: {json.dumps(preferencias, ensure_ascii=False)}
 {hobbies_info}
 {intereses_info}
+
+ACTIVIDADES DISPONIBLES (SCHEMA):
+Cada actividad tiene esta estructura:
+- "id": número entero (ÚSALO en actividad_id)
+- "categoria": string
+- "titulo": string
+- "descripcion": string o null
+- "fecha": string (YYYY-MM-DD)
+- "lugar": string
+- "nivel_sostenibilidad": número (0-5) o null
+
 Actividades disponibles: {json.dumps(actividades_disponibles[:30], ensure_ascii=False)}
+
 Historial de participación: {json.dumps(historial_participacion, ensure_ascii=False)}
 
-IMPORTANTE: Prioriza actividades que coincidan con los hobbies e intereses del usuario. Si el usuario tiene hobbies o intereses específicos, busca actividades relacionadas en la descripción, título o categoría.
+REGLAS CRÍTICAS:
+1. Usa SOLO los IDs que existen en la lista de actividades disponibles
+2. El campo "id" de cada actividad es el que debes usar en "actividad_id" del JSON
+3. Prioriza actividades que coincidan con hobbies e intereses del usuario
+4. Busca palabras clave de hobbies/intereses en: titulo, descripcion, categoria
 
 """
     
     if user_query:
         prompt += f"Consulta del usuario: {user_query}\n\n"
     
-    prompt += """Genera recomendaciones siguiendo el formato especificado en el system prompt.
-Asegúrate de incluir el JSON con actividad_id válido para cada recomendación."""
+    prompt += """FORMATO DE RESPUESTA REQUERIDO:
+1. Para cada recomendación (máximo 5), incluye:
+   - Texto descriptivo explicando la actividad
+   - Línea separadora "---"
+   - GENERAR_RECOMENDACION_JSON: {"actividad_id": [número exacto del campo "id"], "razon": "...", "puntuacion": 0.0-1.0}
+
+2. EJEMPLO CORRECTO:
+---
+GENERAR_RECOMENDACION_JSON: {"actividad_id": 1, "razon": "Coincide con tus intereses", "puntuacion": 0.9}
+
+3. IMPORTANTE:
+   - actividad_id DEBE ser el número exacto del campo "id" de una actividad de la lista
+   - NO inventes IDs
+   - NO uses ```json```, escribe el JSON directamente en una línea"""
     
     return prompt
 
