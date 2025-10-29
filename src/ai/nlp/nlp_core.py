@@ -28,7 +28,7 @@ class NLPModule:
         """
         self._config = config
         model_config = config.get("model", {
-            "name": "gemini-pro",
+            "name": "gemini-1.5-flash",
             "temperature": 0.7,
             "max_tokens": 1024
         })

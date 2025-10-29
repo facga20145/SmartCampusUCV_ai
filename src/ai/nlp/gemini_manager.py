@@ -16,7 +16,8 @@ class GeminiManager:
             model_config: Configuración del modelo (nombre, temperatura, max_tokens)
         """
         self._model_config: Dict[str, Any] = model_config
-        self._model_name: Optional[str] = model_config.get("name", "gemini-pro")
+        # Usar gemini-1.5-flash que tiene mejor tier gratuito
+        self._model_name: Optional[str] = model_config.get("name", "gemini-1.5-flash")
         self._online: bool = False
         
         # Obtener API key desde variable de entorno
