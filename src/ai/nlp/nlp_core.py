@@ -179,7 +179,7 @@ class NLPModule:
             # Intentar con regex multilinea
             matches = RECOMMENDATION_JSON_MULTILINE_REGEX.findall(response_text)
         
-        # Si aún no hay matches, buscar IDs directamente en el texto
+        # Si aún no hay matches, buscar IDs directamente en el texto o por nombre
         if not matches:
             found_ids = ACTIVITY_ID_REGEX.findall(response_text)
             logger.info(f"No se encontraron JSONs completos, pero se encontraron IDs: {found_ids}")
@@ -203,6 +203,27 @@ class NLPModule:
                             processed_ids.add(actividad_id)
                 except ValueError:
                     continue
+            
+            # Si tampoco hay IDs, intentar buscar por título de actividad mencionado en el texto
+            if not found_ids and not recommendations:
+                logger.info("Intentando extraer recomendaciones por nombre de actividad...")
+                for actividad in actividades_disponibles:
+                    titulo = actividad.get("titulo", "").strip()
+                    if titulo and len(titulo) > 3 and titulo in response_text:
+                        # Verificar que no esté ya procesada
+                        actividad_id = actividad.get("id")
+                        if actividad_id and actividad_id not in processed_ids:
+                            recommendations.append({
+                                "actividad_id": actividad_id,
+                                "titulo": titulo,
+                                "categoria": actividad.get("categoria", ""),
+                                "razon": "Recomendada basándose en tus preferencias y mencionada en la respuesta",
+                                "puntuacion": 0.85,
+                                "actividad": actividad
+                            })
+                            processed_ids.add(actividad_id)
+                            logger.info(f"✅ Recomendación encontrada por nombre: {titulo} (ID: {actividad_id})")
+                            break  # Solo la primera mencionada
 
         # Procesar JSONs encontrados
         for match in matches:

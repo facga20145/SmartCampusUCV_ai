@@ -132,20 +132,33 @@ REGLAS CRÍTICAS:
     if user_query:
         prompt += f"Consulta del usuario: {user_query}\n\n"
     
-    prompt += """FORMATO DE RESPUESTA REQUERIDO:
-1. Para cada recomendación (máximo 5), incluye:
-   - Texto descriptivo explicando la actividad
-   - Línea separadora "---"
-   - GENERAR_RECOMENDACION_JSON: {"actividad_id": [número exacto del campo "id"], "razon": "...", "puntuacion": 0.0-1.0}
+    prompt += """FORMATO DE RESPUESTA OBLIGATORIO (DEBES SEGUIRLO EXACTAMENTE):
 
-2. EJEMPLO CORRECTO:
+INSTRUCCIONES CRÍTICAS:
+1. DEBES incluir SIEMPRE el marcador GENERAR_RECOMENDACION_JSON: después de cada actividad que recomiendes
+2. El formato es OBLIGATORIO - sin el JSON, la recomendación no será procesada
+3. Para cada recomendación (máximo 5), usa este formato EXACTO:
+
+**Actividad:** [título de la actividad]
+**Categoría:** [categoría]
+[tu texto descriptivo aquí]
 ---
-GENERAR_RECOMENDACION_JSON: {"actividad_id": 1, "razon": "Coincide con tus intereses", "puntuacion": 0.9}
+GENERAR_RECOMENDACION_JSON: {"actividad_id": [número del campo "id"], "razon": "[razón breve]", "puntuacion": 0.8}
 
-3. IMPORTANTE:
-   - actividad_id DEBE ser el número exacto del campo "id" de una actividad de la lista
-   - NO inventes IDs
-   - NO uses ```json```, escribe el JSON directamente en una línea"""
+EJEMPLO COMPLETO CORRECTO:
+**Actividad:** Campeonato de Futbol 2
+**Categoría:** deportiva
+Esta actividad es ideal para ti porque coincide con tu interés en deportes.
+---
+GENERAR_RECOMENDACION_JSON: {"actividad_id": 2, "razon": "Coincide con tu hobby de Deporte", "puntuacion": 0.9}
+
+REGLAS ABSOLUTAS:
+- actividad_id DEBE ser el número exacto del campo "id" de una actividad de la lista de actividades disponibles
+- DEBES incluir "GENERAR_RECOMENDACION_JSON:" en cada recomendación (sin esto, NO funcionará)
+- NO uses bloques de código ```json``` ni ``` - escribe el JSON directamente
+- El JSON debe estar en UNA LÍNEA después del marcador
+- Verifica que el ID existe en la lista antes de usarlo
+- Si no incluyes el JSON, la recomendación será IGNORADA"""
     
     return prompt
 
