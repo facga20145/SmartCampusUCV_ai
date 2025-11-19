@@ -6,7 +6,7 @@ import os
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
-from ai.nlp.gemini_manager import GeminiManager
+from ai.nlp.groq_manager import GroqManager
 from ai.nlp.prompt_creator import create_system_prompt, create_recommendation_prompt
 
 logger = logging.getLogger("NLPModule")
@@ -38,17 +38,17 @@ class NLPModule:
         """
         self._config = config
         model_config = config.get("model", {
-            "name": "gemini-pro",
+            "name": "llama3-8b-8192",
             "temperature": 0.7,
             "max_tokens": 1024
         })
-        self._gemini_manager = GeminiManager(model_config)
-        self._online = self._gemini_manager.is_online()
+        self._groq_manager = GroqManager(model_config)
+        self._online = self._groq_manager.is_online()
         logger.info("NLPModule inicializado.")
 
     def is_online(self) -> bool:
         """Devuelve True si el módulo NLP está online."""
-        return self._gemini_manager.is_online()
+        return self._groq_manager.is_online()
 
     async def generate_recommendations(
         self,
@@ -113,30 +113,25 @@ class NLPModule:
             intereses=intereses
         )
 
-        # Generar respuesta con Gemini
-        recommendations = []
-        model = self._gemini_manager.get_model()
-
-        if not model:
-            return {
-                "error": "No se pudo obtener el modelo de Gemini",
-                "recomendaciones": []
-            }
-
+        # Generar respuesta con Groq
         try:
-            # Combinar system prompt y user prompt para Gemini
-            # Gemini no tiene separación system/user, así que combinamos
+            # Combinar system prompt y user prompt
             full_prompt = f"""{system_prompt}
 
 {user_prompt}"""
 
-            # Generar respuesta con Gemini
-            response = model.generate_content(full_prompt)
-            full_response_content = response.text
+            # Generar respuesta
+            full_response_content = self._groq_manager.generate_content(full_prompt)
             
+            if not full_response_content:
+                 return {
+                    "error": "Error al generar respuesta con Groq (respuesta vacía)",
+                    "recomendaciones": []
+                }
+
             # Log la respuesta completa para debugging (primeros 500 caracteres)
-            logger.debug(f"Respuesta de Gemini (primeros 500 chars): {full_response_content[:500]}")
-            logger.info(f"Respuesta completa de Gemini: {full_response_content}")
+            logger.debug(f"Respuesta de Groq (primeros 500 chars): {full_response_content[:500]}")
+            logger.info(f"Respuesta completa de Groq: {full_response_content}")
 
             # Extraer recomendaciones del JSON
             recommendations = self._extract_recommendations(full_response_content, actividades_disponibles)
@@ -151,7 +146,7 @@ class NLPModule:
             }
 
         except Exception as e:
-            logger.error(f"Error al generar recomendaciones con Gemini: {e}")
+            logger.error(f"Error al generar recomendaciones con Groq: {e}")
             return {
                 "error": f"Error al generar recomendaciones: {str(e)}",
                 "recomendaciones": []
