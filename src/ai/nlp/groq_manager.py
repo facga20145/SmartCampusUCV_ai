@@ -64,27 +64,27 @@ class GroqManager:
             logger.error("Groq no está disponible")
             return None
         
-        try:
-            completion = self._client.chat.completions.create(
-                model=self._model_name,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                temperature=self._model_config.get("temperature", 0.7),
-                max_tokens=self._model_config.get("max_tokens", 1024),
-                top_p=1,
-                stream=False,
-                stop=None,
-            )
-            
-            return completion.choices[0].message.content
-            
-        except Exception as e:
-            logger.error(f"Error al generar contenido con Groq: {e}")
-            return None
+        if not self._online or not self._client:
+            logger.error("Groq no está disponible")
+            raise Exception("Groq no está disponible (offline o sin cliente)")
+        
+        # No capturamos la excepción aquí para que nlp_core pueda reportar el error real
+        completion = self._client.chat.completions.create(
+            model=self._model_name,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=self._model_config.get("temperature", 0.7),
+            max_tokens=self._model_config.get("max_tokens", 1024),
+            top_p=1,
+            stream=False,
+            stop=None,
+        )
+        
+        return completion.choices[0].message.content
 
     def reload(self, model_config: Dict[str, Any]):
         """Recarga la configuración del modelo."""

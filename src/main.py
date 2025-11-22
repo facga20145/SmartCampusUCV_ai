@@ -5,6 +5,12 @@ import warnings
 import json
 from typing import Dict, Any
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde el archivo .env
+# Se busca en el directorio padre (smartcampus_ai) ya que main.py está en src
+env_path = Path(__file__).parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -52,7 +58,7 @@ def load_config() -> Dict[str, Any]:
         "assistant_name": "SmartCampus Assistant",
         "language": "es",
         "model": {
-            "name": "llama3-8b-8192",
+            "name": "llama-3.3-70b-versatile",
             "temperature": 0.7,
             "max_tokens": 1024
         },
