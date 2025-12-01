@@ -121,7 +121,7 @@ class NLPModule:
 {user_prompt}"""
 
             # Generar respuesta
-            full_response_content = self._groq_manager.generate_content(full_prompt)
+            full_response_content = await self._groq_manager.generate_content(full_prompt)
             
             if not full_response_content:
                  return {
