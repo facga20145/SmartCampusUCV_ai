@@ -119,13 +119,19 @@ Historial de participación: {json.dumps(historial_participacion, ensure_ascii=F
 REGLAS CRÍTICAS:
 1. Usa SOLO los IDs que existen en la lista de actividades disponibles (verifica que el ID existe antes de usarlo)
 2. El campo "id" de cada actividad es el que debes usar en "actividad_id" del JSON
-3. DEBES generar al menos 1 recomendación si hay actividades disponibles
-4. Prioriza actividades que coincidan con hobbies e intereses:
-   - Si el usuario tiene "Deporte" → busca categoría "deportiva" o títulos que mencionen deporte
-   - Si el usuario tiene "Arte" → busca categoría "cultural" o títulos que mencionen arte/cultura
-   - Si no hay coincidencia exacta, busca similitudes (ej: "futbol" → "deportiva")
-5. Busca palabras clave de hobbies/intereses en: titulo, descripcion, categoria (búsqueda flexible)
-6. Si hay múltiples actividades que coinciden, selecciona las mejores (mayor puntuación basada en relevancia)
+3. **PRIORIDAD DE MATCHING**: Busca actividades que COINCIDAN con los hobbies e intereses del usuario:
+   - Si el usuario tiene "Futbol" o "Deporte" → busca categoría "deportiva"
+   - Si el usuario tiene "Arte" o "Danza" → busca categoría "artistica" o "cultural"
+   - Si el usuario tiene "Música" → busca actividades de música o categoría "artistica"
+4. **REGLA IMPORTANTE - SI HAY COINCIDENCIAS**: Si encuentras actividades que coinciden con los hobbies/intereses:
+   - Recomienda SOLAMENTE esas actividades con puntuación alta (0.8-0.95)
+   - NO incluyas actividades de otras categorías
+   - Ejemplo: Si el usuario le gusta "Futbol" y hay una actividad deportiva, SOLO recomienda esa
+5. **SOLO SI NO HAY COINCIDENCIAS**: ÚNICAMENTE si NO hay NINGUNA actividad que coincida:
+   - Primero di: "Actualmente no hay actividades de [categoría del usuario] disponibles."
+   - Luego agrega: "Sin embargo, te invitamos a participar en estas otras actividades mientras tanto:"
+   - Recomienda las alternativas con puntuación baja (0.4-0.5)
+6. NUNCA mezcles actividades que coinciden con alternativas - es una cosa o la otra
 
 """
     
